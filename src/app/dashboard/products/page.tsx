@@ -114,7 +114,7 @@ export default function ProductsPage() {
     setEditProduct(p);
     setShowForm(true);
     Object.entries(p).forEach(([key, value]) => {
-      setValue(key as keyof Product, value as any);
+      setValue(key as keyof Product, value );
     });
   }
 
