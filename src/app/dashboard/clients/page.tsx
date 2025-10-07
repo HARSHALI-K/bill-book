@@ -16,7 +16,7 @@ export default function ClientsPage() {
 		try {
 			const data = await apiFetch<Client[]>("/clients", { method: "GET" });
 			setItems(data);
-		} catch (err: any) {
+		} catch (err) {
 			setError(err?.message || "Failed to load clients");
 		}
 	}
@@ -36,7 +36,7 @@ export default function ClientsPage() {
 			});
 			setItems([created, ...items]);
 			setName("");
-		} catch (err: any) {
+		} catch (err) {
 			setError(err?.message || "Failed to add client");
 		} finally {
 			setLoading(false);

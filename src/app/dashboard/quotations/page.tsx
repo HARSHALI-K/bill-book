@@ -29,7 +29,7 @@ export default function QuotationsPage() {
 			setItems(qs);
 			setClients(cs.map((c) => ({ label: c.name, value: c.id })));
 			setProducts(ps.map((p) => ({ label: p.name, value: p.id })));
-		} catch (err: any) {
+		} catch (err) {
 			setError(err?.message || "Failed to load quotations");
 		}
 	}
@@ -51,7 +51,7 @@ export default function QuotationsPage() {
 			setClient("");
 			setProduct("");
 			setPrice("");
-		} catch (err: any) {
+		} catch (err) {
 			setError(err?.message || "Failed to add quotation");
 		} finally {
 			setLoading(false);

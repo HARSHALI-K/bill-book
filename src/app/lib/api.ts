@@ -8,7 +8,7 @@ const api = axios.create({
   baseURL: API_BASE_URL,
   headers: { "Content-Type": "application/json" },
 });
-let userData=getUserData()
+const userData=getUserData()
 console.log(userData,"userData")
 // Add token if exists
 api.interceptors.request.use((config) => {

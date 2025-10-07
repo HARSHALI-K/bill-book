@@ -43,7 +43,6 @@ const RHFInput: React.FC<RHFInputProps> = ({
   handleResend,
   handleReferralCode,
   handleForgotPass,
-  resendValue = 0,
   forgotpassword = false,
 }) => {
   const [showPassword, setShowPassword] = React.useState(false)

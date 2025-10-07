@@ -19,7 +19,6 @@ export default function LoginPage() {
 	const router = useRouter();
 	const [loading, setLoading] = useState(false);
 	const [formError, setFormError] = useState<string | null>(null);
-	const [debugRes, setDebugRes] = useState<any>(null);
 
 	const schema: yup.ObjectSchema<LoginFormValues> = yup.object({
 		email: yup
@@ -37,57 +36,47 @@ export default function LoginPage() {
 		defaultValues: { email: "", password: "" },
 	});
 
+	const onSubmit: SubmitHandler<LoginFormValues> = async (data) => {
+		setFormError(null);
+		setLoading(true);
+		try {
+			const res = await apiFetch<any>("/common/login", {
+				method: "POST",
+				body: JSON.stringify({ login_type: "email", email: data.email, password: data.password }),
+			});
 
-	
-const onSubmit: SubmitHandler<LoginFormValues> = async (data) => {
-  setFormError(null);
-  setLoading(true);
-  try {
-    const res = await apiFetch<any>("POST", "/common/login", {
-      login_type: "email",
-      email: data.email,
-      password: data.password,
-    });
+			const token = res?.data?.token || res?.token || res?.access_token;
+			const userData = res?.data?.userData || res?.userData || null;
+			if (!token) throw new Error("Token missing in response");
 
-    const token = res?.data?.token || res?.token || res?.access_token;
-    const userData = res?.data?.userData || res?.userData || null; // adjust based on your API response
+			saveAuthToken(token);
+			if (userData) localStorage.setItem("userData", JSON.stringify(userData));
 
-    if (!token) throw new Error("Token missing in response");
+			router.push("/dashboard");
+			toast.success("Logged in successfully");
+			reset();
+		} catch (err: any) {
+			const status = err?.status;
+			const dataErr = err?.data;
+			const emailMsg = dataErr?.data?.email?.[0] || dataErr?.errors?.email?.[0] || null;
+			const passwordMsg = dataErr?.data?.password?.[0] || dataErr?.errors?.password?.[0] || null;
+			const msg = emailMsg || passwordMsg || err?.message || "Login failed";
 
-    // store token
-    saveAuthToken(token);
+			if (emailMsg) {
+				setError("email", { type: "server", message: emailMsg });
+				setFormError(null);
+			} else if (passwordMsg) {
+				setError("password", { type: "server", message: passwordMsg });
+				setFormError(null);
+			} else {
+				setFormError(msg);
+			}
+			toast.error(status ? `${status}: ${msg}` : msg);
+		} finally {
+			setLoading(false);
+		}
+	};
 
-    // store user data in localStorage
-    if (userData) {
-      localStorage.setItem("userData", JSON.stringify(userData));
-    }
-
-    router.push("/dashboard/home");
-    toast.success("Logged in successfully");
-    reset();
-  } catch (err: any) {
-    const emailMsg = err?.errors?.email?.[0] || null;
-    const passwordMsg = err?.errors?.password?.[0] || null;
-    const msg = emailMsg || passwordMsg || err?.message || "Login failed";
-
-    if (emailMsg) {
-      setError("email", { type: "server", message: emailMsg });
-      setFormError(null);
-    } else if (passwordMsg) {
-      setError("password", { type: "server", message: passwordMsg });
-      setFormError(null);
-    } else {
-      setFormError(msg);
-    }
-  } finally {
-    setLoading(false);
-  }
-};
-
-
-
-
-console.log(debugRes,"debugRes");
 	return (
 		<main className=" card grid min-h-dvh place-items-center px-4 py-10">
 			<div className="w-full max-w-[420px] rounded-2xl border border-border bg-card p-6 shadow">
@@ -116,11 +105,6 @@ console.log(debugRes,"debugRes");
 						{loading ? "Logging in..." : "Login"}
 					</button>
 				</form>
-				{debugRes ? (
-					<pre className="mt-4 max-h-40 overflow-auto rounded-lg bg-muted p-3 text-[11px]">
-						{JSON.stringify(debugRes, null, 2)}
-					</pre>
-				) : null}
 			</div>
 		</main>
 	);

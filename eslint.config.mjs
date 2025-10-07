@@ -19,7 +19,15 @@ const eslintConfig = [
       "build/**",
       "next-env.d.ts",
     ],
+     rules: {
+    "@typescript-eslint/no-explicit-any": "off",       // allow `any`
+    "@typescript-eslint/no-unused-vars": "warn",       // show unused vars as warning
+    "@typescript-eslint/explicit-module-boundary-types": "off",
+    "react-hooks/rules-of-hooks": "error",            // keep hooks rule
+    "react-hooks/exhaustive-deps": "warn"             // dependencies warning
   },
+  },
+  
 ];
 
 export default eslintConfig;
