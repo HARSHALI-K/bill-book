@@ -37,45 +37,48 @@ export default function LoginPage() {
 	});
 
 	const onSubmit: SubmitHandler<LoginFormValues> = async (data) => {
-		setFormError(null);
-		setLoading(true);
-		try {
-			const res = await apiFetch<any>("/common/login", {
-				method: "POST",
-				body: JSON.stringify({ login_type: "email", email: data.email, password: data.password }),
-			});
+  setFormError(null);
+  setLoading(true);
 
-			const token = res?.data?.token || res?.token || res?.access_token;
-			const userData = res?.data?.userData || res?.userData || null;
-			if (!token) throw new Error("Token missing in response");
+  try {
+    const res = await apiFetch<any>(
+      "POST",
+      "/common/login",
+      { login_type: "email", email: data.email, password: data.password }
+    );
 
-			saveAuthToken(token);
-			if (userData) localStorage.setItem("userData", JSON.stringify(userData));
+    const token = res?.data?.token || res?.token || res?.access_token;
+    const userData = res?.data?.userData || res?.userData || null;
+    if (!token) throw new Error("Token missing in response");
 
-			router.push("/dashboard");
-			toast.success("Logged in successfully");
-			reset();
-		} catch (err: any) {
-			const status = err?.status;
-			const dataErr = err?.data;
-			const emailMsg = dataErr?.data?.email?.[0] || dataErr?.errors?.email?.[0] || null;
-			const passwordMsg = dataErr?.data?.password?.[0] || dataErr?.errors?.password?.[0] || null;
-			const msg = emailMsg || passwordMsg || err?.message || "Login failed";
+    saveAuthToken(token);
+    if (userData) localStorage.setItem("userData", JSON.stringify(userData));
 
-			if (emailMsg) {
-				setError("email", { type: "server", message: emailMsg });
-				setFormError(null);
-			} else if (passwordMsg) {
-				setError("password", { type: "server", message: passwordMsg });
-				setFormError(null);
-			} else {
-				setFormError(msg);
-			}
-			toast.error(status ? `${status}: ${msg}` : msg);
-		} finally {
-			setLoading(false);
-		}
-	};
+    router.push("/dashboard");
+    toast.success("Logged in successfully");
+    reset();
+  } catch (err: any) {
+    const status = err?.status;
+    const dataErr = err?.data;
+    const emailMsg = dataErr?.data?.email?.[0] || dataErr?.errors?.email?.[0] || null;
+    const passwordMsg = dataErr?.data?.password?.[0] || dataErr?.errors?.password?.[0] || null;
+    const msg = emailMsg || passwordMsg || err?.message || "Login failed";
+
+    if (emailMsg) {
+      setError("email", { type: "server", message: emailMsg });
+      setFormError(null);
+    } else if (passwordMsg) {
+      setError("password", { type: "server", message: passwordMsg });
+      setFormError(null);
+    } else {
+      setFormError(msg);
+    }
+    toast.error(status ? `${status}: ${msg}` : msg);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
 	return (
 		<main className=" card grid min-h-dvh place-items-center px-4 py-10">
