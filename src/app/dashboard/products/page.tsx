@@ -214,12 +214,7 @@ export default function ProductsPage() {
               </div>
 
               <div className="flex gap-2">
-                <button
-                  onClick={() => alert(JSON.stringify(p, null, 2))}
-                  className="rounded bg-blue-500 px-3 py-1 text-xs text-white hover:bg-blue-600"
-                >
-                  View
-                </button>
+              
                 <button
                   onClick={() => onEdit(p)}
                   className="rounded bg-yellow-500 px-3 py-1 text-xs text-white hover:bg-yellow-600"
