@@ -26,7 +26,7 @@ export default function HomePage() {
 
       <div className="grid gap-3">
         {organizations.map((org) =>
-          !org.is_active ? (
+          org.is_active ? (
             <div key={org.id} className="grid gap-3">
               <a
                 href="/dashboard/products"
