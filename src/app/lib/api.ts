@@ -16,7 +16,7 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  if(userData){
+  if(userData?.organizations[0]?.id){
     config.headers.org_id=userData?.organizations[0]?.id
   }
   return config;
