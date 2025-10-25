@@ -10,6 +10,13 @@ import RHFAutoComplete from "@/app/hook/RHFAutocomplete";
 import { Loader2, Plus, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { DeleteDialog } from "@/components/deletedialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 type Product = {
   id?: string;
@@ -43,12 +50,7 @@ export default function ProductsPage() {
   const [showForm, setShowForm] = useState(false);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
 
-  const {
-    handleSubmit,
-    reset,
-    control,
-    setValue,
-  } = useForm<Product>({
+  const { handleSubmit, reset, control, setValue } = useForm<Product>({
     resolver: yupResolver(schema),
   });
 
@@ -114,7 +116,7 @@ export default function ProductsPage() {
     setEditProduct(p);
     setShowForm(true);
     Object.entries(p).forEach(([key, value]) => {
-      setValue(key as keyof Product, value );
+      setValue(key as keyof Product, value);
     });
   }
 
@@ -128,66 +130,67 @@ export default function ProductsPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-semibold">Products</h1>
-        {products.length > 0 && (
-          <button
-            onClick={() => {
-              setShowForm((prev) => !prev);
-              setEditProduct(null);
-              reset();
-            }}
-            className="flex items-center gap-1 rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-sm font-medium shadow hover:opacity-90"
-          >
-            {showForm ? (
-              <>
-                <X className="w-4 h-4" /> Close
-              </>
-            ) : (
-              <>
-                <Plus className="w-4 h-4" /> Add Product
-              </>
-            )}
-          </button>
-        )}
+        <button
+          onClick={() => {
+            setShowForm(true);
+            setEditProduct(null);
+            reset();
+          }}
+          className="flex items-center gap-1 rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-sm font-medium shadow hover:opacity-90"
+        >
+          <Plus className="w-4 h-4" /> Add Product
+        </button>
       </div>
 
-      {/* Form */}
-      {(showForm || products.length === 0) && (
-        <form
-          onSubmit={handleSubmit(onSubmit)}
-          className="grid gap-3 rounded-lg border border-border p-4 shadow-md bg-card mb-6"
-        >
-          <RHFInput control={control} name="name" label="Name" placeholder="Name" />
-          <RHFAutoComplete
-            control={control}
-            multiple={false}
-            fullWidth
-            name="type"
-            placeholder="Type"
-            options={TypeOption}
-          />
-          <RHFInput control={control} name="unit" label="Unit" placeholder="Unit" />
-          <RHFInput
-            label="Default Value"
-            name="default_value"
-            control={control}
-            placeholder="Default Value"
-          />
-          <RHFInput
-            label="Price"
-            name="price"
-            control={control}
-            placeholder="Price"
-          />
-          <button
-            type="submit"
-            disabled={loading}
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground flex items-center justify-center gap-2 disabled:opacity-60"
+      {/* ✅ Dialog for Add/Edit Product */}
+      <Dialog open={showForm} onOpenChange={setShowForm}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>{editProduct ? "Edit Product" : "Add Product"}</DialogTitle>
+            <DialogDescription>
+              {editProduct
+                ? "Update your existing product details."
+                : "Fill the details below to add a new product."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <form
+            onSubmit={handleSubmit(onSubmit)}
+            className="grid gap-3 py-2"
           >
-            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-            {editProduct ? "Update Product" : "Add Product"}
-          </button>
-        </form>
-      )}
+            <RHFInput control={control} name="name" label="Name" placeholder="Name" />
+            <RHFAutoComplete
+              control={control}
+              multiple={false}
+              fullWidth
+              name="type"
+              placeholder="Type"
+              options={TypeOption}
+            />
+            <RHFInput control={control} name="unit" label="Unit" placeholder="Unit" />
+            <RHFInput
+              label="Default Value"
+              name="default_value"
+              control={control}
+              placeholder="Default Value"
+            />
+            <RHFInput
+              label="Price"
+              name="price"
+              control={control}
+              placeholder="Price"
+            />
+            <button
+              type="submit"
+              disabled={loading}
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground flex items-center justify-center gap-2 disabled:opacity-60"
+            >
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              {editProduct ? "Update Product" : "Add Product"}
+            </button>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Product Cards */}
       {loading && products.length === 0 ? (
@@ -196,7 +199,14 @@ export default function ProductsPage() {
           <p className="ml-2 text-muted-foreground">Loading products...</p>
         </div>
       ) : products.length === 0 ? (
-        <p className="text-muted-foreground text-center">No products yet. Add one above 👆</p>
+          <div className="flex flex-col items-center justify-center border border-dashed border-border bg-card rounded-2xl py-12 px-6 shadow-sm text-center max-w-md mx-auto">
+    <div className="flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
+      <Plus className="h-8 w-8 text-primary" />
+    </div>
+    <h2 className="text-lg font-semibold mb-1">No Products Yet</h2>
+   
+  </div>
+
       ) : (
         <div className="grid gap-3 md:grid-cols-1">
           {products.map((p, i) => (
@@ -214,7 +224,6 @@ export default function ProductsPage() {
               </div>
 
               <div className="flex gap-2">
-              
                 <button
                   onClick={() => onEdit(p)}
                   className="rounded bg-yellow-500 px-3 py-1 text-xs text-white hover:bg-yellow-600"
