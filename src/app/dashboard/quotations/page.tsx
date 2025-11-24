@@ -11,6 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import toast from "react-hot-toast";
 import { apiFetch } from "@/app/lib/api";
+import RHFDateInput from "@/app/hook/RDFDatepicker";
+import { useRouter } from "next/navigation";
 
 type Client = { id: string; name: string };
 type Product = { id: string; name: string; unit?: string; rate?: number };
@@ -55,6 +57,7 @@ export default function QuotationPage() {
   const [quotations, setQuotations] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [unitData,setUnitData]=useState([])
 
   const { control, handleSubmit, reset, watch, setValue } =
     useForm<QuotationFormValues>({
@@ -91,7 +94,7 @@ export default function QuotationPage() {
       toast.error("Failed to load products");
     }
   }
-
+console.log(products,"products")
   async function loadQuotations() {
     try {
       const res = await apiFetch<any>("GET", "/organization/getAllQuotations");
@@ -105,7 +108,7 @@ export default function QuotationPage() {
     loadClients();
     loadProducts();
     loadQuotations();
-
+    getAllUnit();
     const userData = localStorage.getItem("userdata");
     const parsed = userData ? JSON.parse(userData) : {};
     setValue("ref_no_template", parsed?.ref_no_template || "BB[[inc_number]]");
@@ -156,9 +159,27 @@ async function onSubmit(data: QuotationFormValues) {
   }
 }
 
+const router =useRouter()
+const handleview=(id)=>{
+console.log(id,"id")
+    router.push(`/dashboard/quotations/view-quotation/${id}`);
+}
 
+
+ async function getAllUnit() {
+    setLoading(true);
+    try {
+      const res = await apiFetch<Product[]>("GET", "/organization/getAllUnits");
+      setUnitData(res?.data?.data ?? []);
+    } catch {
+      toast.error("Failed to load products");
+    } finally {
+      setLoading(false);
+    }
+  }
+console.log(quotations,"quotations")
   return (
-    <main className="px-4 py-6">
+    <main className="px-4 py-6" >
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-semibold">Quotations</h1>
         {quotations.length > 0 && (
@@ -174,9 +195,9 @@ async function onSubmit(data: QuotationFormValues) {
           </Button>
         </div>
       ) : (
-        <div className="grid gap-3">
+        <div className="grid gap-3 cursor-pointer" >
           {quotations.map((q, idx) => (
-            <div
+            <div onClick={()=>handleview(q?.id)}
               key={idx}
               className="border p-4 rounded-lg shadow-sm bg-white flex flex-col gap-1"
             >
@@ -244,25 +265,22 @@ async function onSubmit(data: QuotationFormValues) {
           </div>
 
         
-          <RHFInput
-            control={control}
-            name="document_date"
-            label="Document Date"
-            type="date"
-          />
+          
+          <RHFDateInput
+  control={control}
+  name="document_date"
+  label="Document Date"
+  mandatory={true}
+  type="date"   // or "datetime-local"
+/>
+
           <RHFInput
             control={control}
             name="comment"
             label="Comment"
             placeholder="Quotation comment"
           />
-          <RHFInput
-            control={control}
-            name="round_off"
-            label="Round Off"
-            type="number"
-            placeholder="0"
-          />
+         
         </div>
 
         {/* Products Section */}
@@ -304,12 +322,24 @@ async function onSubmit(data: QuotationFormValues) {
                 type="number"
                 placeholder="0"
               />
-              <RHFInput
-                control={control}
-                name={`products.${index}.unit`}
-                label="Unit"
-                placeholder="Unit"
-              />
+              
+            <div>
+  <Label className="text-sm font-medium">Unit</Label>
+  <select
+    className="border rounded-md px-3 py-2 w-full bg-white"
+    value={watch(`products.${index}.unit`)}
+    onChange={(e) => setValue(`products.${index}.unit`, e.target.value)}
+  >
+    <option value="">Select Unit</option>
+    {products.map((p) => (
+      <option key={p.id} value={p.unit}>
+        {p.unit}
+      </option>
+    ))}
+  </select>
+</div>
+
+
 
               <Button
                 type="button"

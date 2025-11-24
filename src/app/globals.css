@@ -179,6 +179,22 @@ body {
 	box-shadow: var(--shadow-sm);
 	transform: translateY(0);
 }
+#quotation-preview * {
+  color: inherit !important;
+  background-color: inherit !important;
+}
+
+/* pdf.css */
+.pdf-safe {
+  background-color: #ffffff !important;
+  color: #1f2937 !important;
+}
+.pdf-safe * {
+  background-color: inherit !important;
+  color: inherit !important;
+}
+
+
 
 @layer base {
   * {

@@ -17,6 +17,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { Label } from "@radix-ui/react-label";
 
 type Product = {
   id?: string;
@@ -49,7 +50,7 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
-
+const [unitData,setUnitData]=useState([])
   const { handleSubmit, reset, control, setValue } = useForm<Product>({
     resolver: yupResolver(schema),
   });
@@ -66,35 +67,59 @@ export default function ProductsPage() {
       setLoading(false);
     }
   }
-
-  useEffect(() => {
-    loadProducts();
-  }, []);
-
-  // ✅ Add or Update Product
-  async function onSubmit(data: Product) {
+  async function getAllUnit() {
     setLoading(true);
     try {
-      if (editProduct) {
-        await apiFetch<Product>("POST", "/organization/updateProduct", {
-          ...data,
-          id: editProduct.id,
-        });
-        toast.success("✅ Product updated successfully");
-      } else {
-        await apiFetch<Product>("POST", "/organization/createProduct", data);
-        toast.success("✅ Product added successfully");
-      }
-      await loadProducts();
-      reset();
-      setEditProduct(null);
-      setShowForm(false);
+      const res = await apiFetch<Product[]>("GET", "/organization/getAllUnits");
+      setUnitData(res?.data?.data ?? []);
     } catch {
-      toast.error("Operation failed. Please try again.");
+      toast.error("Failed to load products");
     } finally {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    loadProducts();
+    getAllUnit();
+  }, []);
+
+async function onSubmit(data: Product) {
+  setLoading(true);
+  try {
+    if (editProduct) {
+      await apiFetch<Product>("POST", "/organization/updateProduct", {
+        ...data,
+        id: editProduct.id,
+      });
+      toast.success("✅ Product updated successfully");
+    } else {
+      await apiFetch<Product>("POST", "/organization/createProduct", data);
+      toast.success("✅ Product added successfully");
+    }
+
+    await loadProducts();
+    reset();
+    setEditProduct(null);
+    setShowForm(false);
+  } catch (error: any) {
+    console.error("❌ API Error:", error);
+
+    // optional: show specific message if backend sends one
+    if (error?.response?.data?.message) {
+      toast.error(error.response.data.message);
+    } else if (error?.message) {
+      toast.error(error.message);
+    } else {
+      toast.error("Operation failed. Please try again.");
+    }
+  } finally {
+    setLoading(false);
+  }
+}
+
+
+
 
   // ✅ Delete Product
   async function onDelete(id?: string) {
@@ -167,18 +192,34 @@ export default function ProductsPage() {
               placeholder="Type"
               options={TypeOption}
             />
-            <RHFInput control={control} name="unit" label="Unit" placeholder="Unit" />
-            <RHFInput
+           
+  <div>
+            <Label className="text-sm font-medium">Unit</Label>
+            <select
+              className="border rounded-md px-3 py-2 w-full bg-white"
+              {...(control.register
+                ? { ...control.register("unit") }
+                : { name: "unit" })}
+            >
+              <option value="">Select Client</option>
+              {unitData.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>           
+           <RHFInput
               label="Default Value"
               name="default_value"
               control={control}
               placeholder="Default Value"
             />
             <RHFInput
-              label="Price"
+              label="Rate"
               name="price"
               control={control}
-              placeholder="Price"
+              placeholder="Rate"
             />
             <button
               type="submit"

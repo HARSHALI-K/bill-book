@@ -2,7 +2,7 @@ import axios from "axios";
 import { getAuthToken,getUserData } from "./auth";
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://billbook-ekwe.onrender.com/api/v1";
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-bill-book.pratikyewale.in/api/v1";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -17,7 +17,7 @@ api.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
   if(userData?.organizations[0]?.id){
-    config.headers.org_id=userData?.organizations[0]?.id
+    config.headers.orgid=userData?.organizations[0]?.id
   }
   return config;
 });
