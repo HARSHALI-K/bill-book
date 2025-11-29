@@ -24,12 +24,12 @@ interface DeleteDialogProps {
 
 export function DeleteDialog({ trigger, itemName, onConfirm }: DeleteDialogProps) {
   return (
-    <AlertDialog className="text-sm p-0">
+    <AlertDialog className="text-lg p-4">
       <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
       <AlertDialogContent className="p-2">
         <AlertDialogHeader>
-          <AlertDialogTitle className="text-start">Confirmation</AlertDialogTitle>
-          <AlertDialogDescription className="text-sm border-t pt-2 text-start">
+          <AlertDialogTitle className="text-start text-xl">Confirmation</AlertDialogTitle>
+          <AlertDialogDescription className="text-lg border-t pt-2 text-start p-2 text-foreground">
             This action cannot be undone. It will permanently delete{" "}
             {itemName && <span className="font-semibold">{itemName}</span>} from your list.
           </AlertDialogDescription>

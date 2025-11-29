@@ -5,6 +5,9 @@ import { useForm, useFieldArray } from "react-hook-form";
 import * as yup from "yup";
 import { yupResolver } from "@hookform/resolvers/yup";
 import RHFInput from "@/app/hook/RHFInput";
+import RHFSelect from "@/app/hook/RHFSelect";
+import GlobalLoader from "@/app/ui/GlobalLoader";
+import { formatNumberCompact } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Loader2, Plus, Trash, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -13,6 +16,7 @@ import toast from "react-hot-toast";
 import { apiFetch } from "@/app/lib/api";
 import RHFDateInput from "@/app/hook/RDFDatepicker";
 import { useRouter } from "next/navigation";
+       import { ArrowUpRight } from "lucide-react";
 
 type Client = { id: string; name: string };
 type Product = { id: string; name: string; unit?: string; rate?: number };
@@ -42,13 +46,21 @@ const schema = yup.object().shape({
     .array()
     .of(
       yup.object().shape({
-        product_id: yup.string().required("Product is required"),
-        qty: yup.number().positive("Quantity must be positive").required(),
-        rate: yup.number().positive("Rate must be positive").required(),
-        unit: yup.string().required("Unit is required"),
+        product_id: yup.string().required("Product Name is required"),
+        qty: yup
+          .number()
+          .typeError("Product Quantity must be a number")
+          .positive("Product Quantity must be positive")
+          .required("Product Quantity is required"),
+        rate: yup
+          .number()
+          .typeError("Product Price must be a number")
+          .positive("Product Price must be positive")
+          .required("Product Price is required"),
+        unit: yup.string().required("Product Unit is required"),
       })
     )
-    .min(1, "At least one product is required"),
+    .min(1, "At least one Product is required"),
 });
 
 export default function QuotationPage() {
@@ -59,7 +71,7 @@ export default function QuotationPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [unitData,setUnitData]=useState([])
 
-  const { control, handleSubmit, reset, watch, setValue } =
+  const { control, handleSubmit, reset, watch, setValue, trigger } =
     useForm<QuotationFormValues>({
       resolver: yupResolver(schema),
       defaultValues: {
@@ -75,6 +87,7 @@ export default function QuotationPage() {
     control,
     name: "products",
   });
+  const [editQuotation, setEditQuotation] = useState<any | null>(null);
 
   // Load data
   async function loadClients() {
@@ -132,15 +145,32 @@ console.log(products,"products")
 async function onSubmit(data: QuotationFormValues) {
   setLoading(true);
   try {
+    // validate all fields and show errors
+    const valid = await trigger();
+    if (!valid) {
+      setLoading(false);
+      return;
+    }
+
     const payload = {
       ...data,
-      ref_no_template: data.ref_no_template, // ✅ fixed syntax
+      ref_no_template: data.ref_no_template,
     };
 
-    await apiFetch("POST", "/organization/addQuotation", payload);
-    toast.success("✅ Quotation created successfully");
+    if (editQuotation) {
+      // update existing quotation (backend endpoint assumed)
+      await apiFetch("POST", "/organization/updateQuotation", {
+        ...payload,
+        id: editQuotation.id,
+      });
+      toast.success("Quotation updated successfully");
+    } else {
+      await apiFetch("POST", "/organization/addQuotation", payload);
+      toast.success("Quotation created successfully");
+    }
 
     setDialogOpen(false);
+    setEditQuotation(null);
     loadQuotations();
 
     reset({
@@ -153,7 +183,46 @@ async function onSubmit(data: QuotationFormValues) {
     });
   } catch (error) {
     console.error(error);
-    toast.error("Failed to create quotation");
+    toast.error("Failed to create/update quotation");
+  } finally {
+    setLoading(false);
+  }
+}
+
+// Edit existing quotation - normalize and reset form
+function onEditQuotation(q: any) {
+  const normalizedProducts = (q.products || []).map((p: any) => ({
+    product_id: String(p.product_id ?? p.product?.id ?? ""),
+    qty: Number(p.qty) || 1,
+    rate: Number(p.rate) || 0,
+    unit: String(p.unit ?? p.unit_id ?? p.product?.unit ?? ""),
+  }));
+
+  const normalized = {
+    client_id: String(q.client_id ?? q.client?.id ?? ""),
+    ref_no_template: q.ref_no_template || "",
+    document_date: q.document_date || new Date().toISOString().split("T")[0],
+    comment: q.comment || "",
+    round_off: q.round_off ?? 0,
+    products: normalizedProducts.length ? normalizedProducts : [{ product_id: "", qty: 1, rate: 0, unit: "" }],
+  } as QuotationFormValues;
+
+  setEditQuotation(q);
+  reset(normalized);
+  setDialogOpen(true);
+}
+
+// Delete quotation
+async function onDeleteQuotation(id?: string) {
+  if (!id) return;
+  setLoading(true);
+  try {
+    await apiFetch("DELETE", "/organization/deleteQuotation", { id });
+    toast.success("Quotation deleted successfully");
+    setQuotations((prev) => prev.filter((q) => q.id !== id));
+  } catch (err) {
+    console.error(err);
+    toast.error("Failed to delete quotation");
   } finally {
     setLoading(false);
   }
@@ -180,52 +249,86 @@ console.log(id,"id")
 console.log(quotations,"quotations")
   return (
     <main className="px-4 py-6" >
+      <GlobalLoader />
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-semibold">Quotations</h1>
         {quotations.length > 0 && (
-          <Button onClick={() => setDialogOpen(true)}>Add Quotation</Button>
+          <Button onClick={() => { setEditQuotation(null); setDialogOpen(true); }}> <Plus className="w-4 h-4" />Add Quotation</Button>
         )}
       </div>
 
       {quotations.length === 0 ? (
         <div className="text-center text-sm text-muted-foreground">
           <p>No quotations yet</p>
-          <Button className="mt-3" onClick={() => setDialogOpen(true)}>
+          <Button className="mt-3" onClick={() => { setEditQuotation(null); setDialogOpen(true); }}>
             Add Quotation
           </Button>
         </div>
       ) : (
-        <div className="grid gap-3 cursor-pointer" >
-          {quotations.map((q, idx) => (
-            <div onClick={()=>handleview(q?.id)}
-              key={idx}
-              className="border p-4 rounded-lg shadow-sm bg-white flex flex-col gap-1"
-            >
-              <h2 className="font-semibold">
-                {q.client_name || "Unnamed Client"}
-              </h2>
-              <p className="text-sm text-gray-600">
-                Ref No: {q.ref_no_template}
-              </p>
-              <p className="text-sm text-gray-600">
-                Date: {q.document_date}
-              </p>
-              <p className="text-sm text-gray-600">
-                Comment: {q.comment || "-"}
-              </p>
-              <div className="mt-2">
-                <p className="font-medium text-sm mb-1">Products:</p>
-                <ul className="list-disc pl-5 text-sm text-gray-700">
-                  {q.products?.map((p: any, i: number) => (
-                    <li key={i}>
-                      {p.product_name} — {p.qty} {p.unit} × ₹{p.rate}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          ))}
-        </div>
+       <div className="grid gap-4">
+  {quotations.map((q, idx) => (
+    <div
+      key={idx}
+      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-xl border border-border bg-card p-4 shadow-sm hover:shadow-md transition-all"
+    >
+      {/* Left Section — Details */}
+      <div>
+       
+
+        {/* CLICKABLE REF NO */}
+
+<p
+  onClick={() => handleview(q?.id)}
+  className="text-lg text-blue-600 cursor-pointer hover:underline flex items-center gap-1 w-fit"
+>
+  {q.reference_no}
+  <ArrowUpRight className="h-4 w-4" />
+</p>
+
+ <h2 className="font-semibold text-lg">
+          {q.client?.name || "Unnamed Client"}
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Date: {q.document_date}
+        </p>
+        <p className="text-sm text-muted-foreground">
+          Comment: {q.comment || "-"}
+        </p>
+
+      
+      </div>
+
+      {/* Right Section — Buttons */}
+     <div className="flex gap-2">
+  <Button
+    variant="secondary"
+    size="sm"
+    onClick={(e) => {
+      e.stopPropagation();
+      onEditQuotation(q);
+    }}
+    className="bg-yellow-500 hover:bg-yellow-600 text-white text-xs px-3 py-1"
+  >
+    Edit
+  </Button>
+
+  <Button
+    variant="destructive"
+    size="sm"
+    onClick={(e) => {
+      e.stopPropagation();
+      onDeleteQuotation(q?.id);
+    }}
+    className="bg-red-500 hover:bg-red-600 text-xs px-3 py-1"
+  >
+    Delete
+  </Button>
+</div>
+
+    </div>
+  ))}
+</div>
+
       )}
 
       {/* Dialog */}
@@ -236,10 +339,11 @@ console.log(quotations,"quotations")
   >
     {/* Scrollable inner area */}
     <div className="max-h-[90vh] overflow-y-auto px-4 py-6 space-y-6">
-      <DialogHeader>
-        <DialogTitle className="text-lg font-semibold text-center">
-          Add Quotation
+        <DialogHeader>
+        <DialogTitle className="text-lg font-semibold text-start">
+          {editQuotation ? "Edit Quotation" : "Add Quotation"}
         </DialogTitle>
+        
       </DialogHeader>
 
       {/* FORM */}
@@ -248,20 +352,13 @@ console.log(quotations,"quotations")
         <div className="space-y-3">
           {/* Client Dropdown */}
           <div>
-            <Label className="text-sm font-medium">Client</Label>
-            <select
-              className="border rounded-md px-3 py-2 w-full bg-white"
-              {...(control.register
-                ? { ...control.register("client_id") }
-                : { name: "client_id" })}
-            >
-              <option value="">Select Client</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+            <RHFSelect
+              control={control}
+              name="client_id"
+              label="Client Name"
+              options={clients.map((c) => ({ label: c.name, value: c.id }))}
+              placeholder="Select Client Name"
+            />
           </div>
 
         
@@ -277,7 +374,7 @@ console.log(quotations,"quotations")
           <RHFInput
             control={control}
             name="comment"
-            label="Comment"
+            label="Comment" mandatory={false}
             placeholder="Quotation comment"
           />
          
@@ -293,62 +390,50 @@ console.log(quotations,"quotations")
               className="flex flex-col gap-3 border p-3 rounded-lg bg-gray-50"
             >
               <div>
-                <Label className="text-sm mb-1 block">Product</Label>
-                <select
-                  className="border rounded-md px-3 py-2 w-full bg-white"
-                  value={watch(`products.${index}.product_id`)}
-                  onChange={(e) => handleProductChange(index, e.target.value)}
-                >
-                  <option value="">Select Product</option>
-                  {products.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
+                <RHFSelect
+                  control={control}
+                  name={`products.${index}.product_id`}
+                  label="Product Name"
+                  options={products.map((p) => ({ label: p.name, value: p.id }))}
+                  placeholder="Select Product Name"
+                  onValueChange={(val) => handleProductChange(index, String(val))}
+                />
               </div>
 
               <RHFInput
                 control={control}
                 name={`products.${index}.qty`}
-                label="Quantity"
+                label="Product Quantity"
                 type="number"
                 placeholder="1"
               />
               <RHFInput
                 control={control}
                 name={`products.${index}.rate`}
-                label="Rate"
+                label="Product Price"
                 type="number"
                 placeholder="0"
               />
               
-            <div>
-  <Label className="text-sm font-medium">Unit</Label>
-  <select
-    className="border rounded-md px-3 py-2 w-full bg-white"
-    value={watch(`products.${index}.unit`)}
-    onChange={(e) => setValue(`products.${index}.unit`, e.target.value)}
-  >
-    <option value="">Select Unit</option>
-    {products.map((p) => (
-      <option key={p.id} value={p.unit}>
-        {p.unit}
-      </option>
-    ))}
-  </select>
-</div>
+                          <div>
+                            <RHFSelect
+                              control={control}
+                              name={`products.${index}.unit`}
+                              label="Product Unit"
+                              options={unitData.map((u: any) => ({ label: u.name, value: u.id }))}
+                              placeholder="Select Product Unit"
+                            />
+                          </div>
 
 
 
-              <Button
-                type="button"
-                variant="destructive"
-                onClick={() => remove(index)}
-                className="flex items-center gap-1 justify-center"
-              >
-                <Trash className="h-4 w-4" /> Remove
-              </Button>
+              
+              <div className="flex justify-end">
+                <Button size="sm" variant="ghost" onClick={() => remove(index)} className="text-red-600 hover:bg-red-50">
+                  <Trash className="h-4 w-4" />
+                  Remove
+                </Button>
+              </div>
             </div>
           ))}
 
@@ -369,14 +454,14 @@ console.log(quotations,"quotations")
           <Button
             type="button"
             variant="outline"
-            onClick={() => setDialogOpen(false)}
+            onClick={() => { setEditQuotation(null); setDialogOpen(false); }}
             className="flex items-center gap-1"
           >
             <X className="h-4 w-4" /> Cancel
           </Button>
           <Button type="submit" disabled={loading} className="flex items-center gap-1">
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-            Save Quotation
+            {editQuotation ? "Update Quotation" : "Save Quotation"}
           </Button>
         </DialogFooter>
       </form>

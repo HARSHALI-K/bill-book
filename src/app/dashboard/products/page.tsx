@@ -6,7 +6,8 @@ import * as yup from "yup";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { apiFetch } from "../../lib/api";
 import RHFInput from "@/app/hook/RHFInput";
-import RHFAutoComplete from "@/app/hook/RHFAutocomplete";
+import RHFSelect from "@/app/hook/RHFSelect";
+import GlobalLoader from "@/app/ui/GlobalLoader";
 import { Loader2, Plus, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { DeleteDialog } from "@/components/deletedialog";
@@ -30,19 +31,22 @@ type Product = {
 };
 
 const schema = yup.object().shape({
-  name: yup.string().required("Name is required"),
-  type: yup.string().oneOf(["service", "product"]).required("Type is required"),
-  unit: yup.string().required("Unit is required"),
+  name: yup.string().required("Product Name is required").max(255, "Product Name must be at most 255 characters"),
+  type: yup
+    .string()
+    .oneOf(["service", "product"], "Product Type must be either 'service' or 'product'")
+    .required("ProductType is required"),
+  unit: yup.string().required("Product Unit is required").max(100, "Product Unit must be at most 100 characters"),
   default_value: yup
     .number()
     .typeError("Default value must be a number")
-    .min(1)
+    .min(1, "Default value must be at least 1")
     .required("Default value is required"),
   price: yup
     .number()
-    .typeError("Price must be a number")
-    .min(1)
-    .required("Price is required"),
+    .typeError("Product Price must be a number")
+    .min(1, "Product Price must be at least 1")
+    .required("Product Price is required"),
 });
 
 export default function ProductsPage() {
@@ -50,8 +54,8 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
-const [unitData,setUnitData]=useState([])
-  const { handleSubmit, reset, control, setValue } = useForm<Product>({
+  const [unitData, setUnitData] = useState([]);
+  const { handleSubmit, reset, control, setValue, trigger } = useForm<Product>({
     resolver: yupResolver(schema),
   });
 
@@ -59,7 +63,10 @@ const [unitData,setUnitData]=useState([])
   async function loadProducts() {
     setLoading(true);
     try {
-      const res = await apiFetch<Product[]>("GET", "/organization/getAllProducts");
+      const res = await apiFetch<Product[]>(
+        "GET",
+        "/organization/getAllProducts"
+      );
       setProducts(res?.data?.data ?? []);
     } catch {
       toast.error("Failed to load products");
@@ -84,42 +91,46 @@ const [unitData,setUnitData]=useState([])
     getAllUnit();
   }, []);
 
-async function onSubmit(data: Product) {
-  setLoading(true);
-  try {
-    if (editProduct) {
-      await apiFetch<Product>("POST", "/organization/updateProduct", {
-        ...data,
-        id: editProduct.id,
-      });
-      toast.success("✅ Product updated successfully");
-    } else {
-      await apiFetch<Product>("POST", "/organization/createProduct", data);
-      toast.success("✅ Product added successfully");
-    }
+  async function onSubmit(data: Product) {
+    setLoading(true);
+    try {
+      // Validate all fields and show errors before attempting submit
+      const valid = await trigger();
+      if (!valid) {
+        // trigger() will populate errors visible under each field
+        setLoading(false);
+        return;
+      }
+      if (editProduct) {
+        await apiFetch<Product>("POST", "/organization/updateProduct", {
+          ...data,
+          id: editProduct.id,
+        });
+        toast.success("Product updated successfully");
+      } else {
+        await apiFetch<Product>("POST", "/organization/createProduct", data);
+        toast.success("Product added successfully");
+      }
 
-    await loadProducts();
-    reset();
-    setEditProduct(null);
-    setShowForm(false);
-  } catch (error: any) {
-    console.error("❌ API Error:", error);
+      await loadProducts();
+      reset();
+      setEditProduct(null);
+      setShowForm(false);
+    } catch (error: any) {
+      console.error("❌ API Error:", error);
 
-    // optional: show specific message if backend sends one
-    if (error?.response?.data?.message) {
-      toast.error(error.response.data.message);
-    } else if (error?.message) {
-      toast.error(error.message);
-    } else {
-      toast.error("Operation failed. Please try again.");
+      // optional: show specific message if backend sends one
+      if (error?.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else if (error?.message) {
+        toast.error(error.message);
+      } else {
+        toast.error("Operation failed. Please try again.");
+      }
+    } finally {
+      setLoading(false);
     }
-  } finally {
-    setLoading(false);
   }
-}
-
-
-
 
   // ✅ Delete Product
   async function onDelete(id?: string) {
@@ -138,11 +149,18 @@ async function onSubmit(data: Product) {
 
   // ✅ Handle Edit
   function onEdit(p: Product) {
+    // Normalize product values and reset the entire form so nested/defaults populate correctly
+    const normalized = {
+      ...p,
+      unit: p.unit != null ? String(p.unit) : "",
+      type: p.type != null ? String(p.type) : "",
+      default_value: p.default_value ?? 0,
+      price: p.price ?? 0,
+    } as Product;
+
     setEditProduct(p);
+    reset(normalized);
     setShowForm(true);
-    Object.entries(p).forEach(([key, value]) => {
-      setValue(key as keyof Product, value);
-    });
   }
 
   const TypeOption = [
@@ -152,6 +170,7 @@ async function onSubmit(data: Product) {
 
   return (
     <main className="px-4 py-6">
+      <GlobalLoader />
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-semibold">Products</h1>
@@ -171,7 +190,9 @@ async function onSubmit(data: Product) {
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>{editProduct ? "Edit Product" : "Add Product"}</DialogTitle>
+            <DialogTitle>
+              {editProduct ? "Edit Product" : "Add Product"}
+            </DialogTitle>
             <DialogDescription>
               {editProduct
                 ? "Update your existing product details."
@@ -179,47 +200,44 @@ async function onSubmit(data: Product) {
             </DialogDescription>
           </DialogHeader>
 
-          <form
-            onSubmit={handleSubmit(onSubmit)}
-            className="grid gap-3 py-2"
-          >
-            <RHFInput control={control} name="name" label="Name" placeholder="Name" />
-            <RHFAutoComplete
+          <form onSubmit={handleSubmit(onSubmit)} className="grid gap-3 py-2">
+            <RHFInput
               control={control}
-              multiple={false}
-              fullWidth
-              name="type"
-              placeholder="Type"
-              options={TypeOption}
+              name="name"
+              label="Product Name"
+              placeholder="Product Name"
             />
-           
-  <div>
-            <Label className="text-sm font-medium">Unit</Label>
-            <select
-              className="border rounded-md px-3 py-2 w-full bg-white"
-              {...(control.register
-                ? { ...control.register("unit") }
-                : { name: "unit" })}
-            >
-              <option value="">Select Client</option>
-              {unitData.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>           
-           <RHFInput
+
+            <div>
+              <RHFSelect
+                control={control} mandatory
+                name="type"
+                label="Product Type"
+                options={TypeOption.map((o) => ({ label: o.label, value: o.value }))}
+                placeholder="Select Type"
+              />
+            </div>
+
+            <div>
+              <RHFSelect
+                control={control} mandatory
+                name="unit"
+                label="Product Unit"
+                options={unitData.map((c: any) => ({ label: c.name, value: c.id }))}
+                placeholder="Select Unit"
+              />
+            </div>
+            <RHFInput
               label="Default Value"
               name="default_value"
               control={control}
               placeholder="Default Value"
             />
             <RHFInput
-              label="Rate"
+              label="Product Price"
               name="price"
               control={control}
-              placeholder="Rate"
+              placeholder="Product Price"
             />
             <button
               type="submit"
@@ -240,14 +258,12 @@ async function onSubmit(data: Product) {
           <p className="ml-2 text-muted-foreground">Loading products...</p>
         </div>
       ) : products.length === 0 ? (
-          <div className="flex flex-col items-center justify-center border border-dashed border-border bg-card rounded-2xl py-12 px-6 shadow-sm text-center max-w-md mx-auto">
-    <div className="flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
-      <Plus className="h-8 w-8 text-primary" />
-    </div>
-    <h2 className="text-lg font-semibold mb-1">No Products Yet</h2>
-   
-  </div>
-
+        <div className="flex flex-col items-center justify-center border border-dashed border-border bg-card rounded-2xl py-12 px-6 shadow-sm text-center max-w-md mx-auto">
+          <div className="flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
+            <Plus className="h-8 w-8 text-primary" />
+          </div>
+          <h2 className="text-lg font-semibold mb-1">No Products Yet</h2>
+        </div>
       ) : (
         <div className="grid gap-3 md:grid-cols-1">
           {products.map((p, i) => (

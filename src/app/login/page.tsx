@@ -36,9 +36,11 @@ export default function LoginPage() {
 		defaultValues: { email: "", password: "" },
 	});
 
-	const onSubmit: SubmitHandler<LoginFormValues> = async (data) => {
+const onSubmit: SubmitHandler<LoginFormValues> = async (data) => {
   setFormError(null);
   setLoading(true);
+
+  console.log("Submitting login with data:", data);
 
   try {
     const res = await apiFetch<any>(
@@ -47,37 +49,40 @@ export default function LoginPage() {
       { login_type: "email", email: data.email, password: data.password }
     );
 
+    console.log("Login response:", res);
+
     const token = res?.data?.token || res?.token || res?.access_token;
     const userData = res?.data?.userData || res?.userData || null;
+
     if (!token) throw new Error("Token missing in response");
 
     saveAuthToken(token);
-    if (userData) localStorage.setItem("userData", JSON.stringify(userData));
+
+    if (userData) {
+      localStorage.setItem("userData", JSON.stringify(userData));
+    }
 
     router.push("/dashboard");
     toast.success("Logged in successfully");
-    reset();
-  } catch (err: any) {
-    const status = err?.status;
-    const dataErr = err?.data;
-    const emailMsg = dataErr?.data?.email?.[0] || dataErr?.errors?.email?.[0] || null;
-    const passwordMsg = dataErr?.data?.password?.[0] || dataErr?.errors?.password?.[0] || null;
-    const msg = emailMsg || passwordMsg || err?.message || "Login failed";
 
-    if (emailMsg) {
-      setError("email", { type: "server", message: emailMsg });
-      setFormError(null);
-    } else if (passwordMsg) {
-      setError("password", { type: "server", message: passwordMsg });
-      setFormError(null);
-    } else {
-      setFormError(msg);
-    }
-    toast.error(status ? `${status}: ${msg}` : msg);
+  } catch (err: any) {
+    console.error("Login error:", err);
+
+    // Extract a safe message
+    const safeMsg =
+      err?.message ||
+      err?.data?.message ||
+      err?.data?.error ||
+      "Login failed. Please try again.";
+
+    toast.error(safeMsg);
+    setFormError(safeMsg);
+
   } finally {
     setLoading(false);
   }
 };
+
 
 
 	return (
