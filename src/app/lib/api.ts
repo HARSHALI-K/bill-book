@@ -1,5 +1,6 @@
 import axios from "axios";
 import { getAuthToken,getUserData } from "./auth";
+import { notifyApiActivity } from "./api-events";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-bill-book.pratikyewale.in/api/v1";
@@ -8,17 +9,22 @@ const api = axios.create({
   baseURL: API_BASE_URL,
   headers: { "Content-Type": "application/json" },
 });
-const userData=getUserData()
-console.log(userData,"userData")
-// Add token if exists
+// Add token if exists. Read userData lazily inside the interceptor
 api.interceptors.request.use((config) => {
   const token = getAuthToken();
   if (token) {
+    if (!config.headers) config.headers = {};
     config.headers.Authorization = `Bearer ${token}`;
   }
-  if(userData?.organizations[0]?.id){
-    config.headers.orgid=userData?.organizations[0]?.id
+
+  // Read fresh user data at request time and guard array access safely
+  const userData = getUserData();
+  const orgId = userData?.organizations?.[0]?.id ?? null;
+  if (orgId) {
+    if (!config.headers) config.headers = {};
+    config.headers.orgid = orgId;
   }
+
   return config;
 });
 
@@ -28,6 +34,7 @@ export async function apiFetch<T = any>(
   url: string,
   data?: any
 ): Promise<T> {
+  notifyApiActivity(1);
   try {
     const res = await api.request<T>({ method, url, data });
     return res.data;
@@ -52,5 +59,7 @@ export async function apiFetch<T = any>(
     }
 
     throw { message: error.message || "Network error" };
+  } finally {
+    notifyApiActivity(-1);
   }
 }

@@ -6,6 +6,7 @@ import * as yup from "yup";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { apiFetch } from "../../lib/api";
 import RHFInput from "@/app/hook/RHFInput";
+import GlobalLoader from "@/app/ui/GlobalLoader";
 import { Loader2, Plus, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { DeleteDialog } from "@/components/deletedialog";
@@ -35,18 +36,18 @@ type Client = {
 };
 
 const schema = yup.object().shape({
-  name: yup.string().required("Name is required").max(255),
-  description: yup.string().max(500).nullable(),
-  email: yup.string().email("Invalid email").nullable(),
-  mobile_number: yup.string().max(20).nullable(),
-  address_line_1: yup.string().max(255).nullable(),
-  address_line_2: yup.string().max(255).nullable(),
-  country: yup.string().max(100).nullable(),
-  state: yup.string().max(100).nullable(),
-  city: yup.string().max(100).nullable(),
-  pincode: yup.string().max(20).nullable(),
+  name: yup.string().required("Name is required").max(255, "Name must be at most 255 characters"),
+  description: yup.string().max(500, "Description must be at most 500 characters").nullable(),
+  email: yup.string().email("Invalid email address").required("Email is required"),
+  mobile_number: yup.string().required("Mobile number is required").max(20, "Mobile number must be at most 20 characters"),
+  address_line_1: yup.string().required("Address Line 1 is required").max(255, "Address must be at most 255 characters"),
+  address_line_2: yup.string().max(255, "Address must be at most 255 characters").nullable(),
+  country: yup.string().required("Country is required").max(100, "Country must be at most 100 characters"),
+  state: yup.string().required("State is required").max(100, "State must be at most 100 characters"),
+  city: yup.string().required("City is required").max(100, "City must be at most 100 characters"),
+  pincode: yup.string().required("Pincode is required").max(20, "Pincode must be at most 20 characters"),
   logo: yup.string().nullable(),
-  GSTIN: yup.string().max(50).nullable(),
+  GSTIN: yup.string().required("GSTIN is required").max(50, "GSTIN must be at most 50 characters"),
 });
 
 export default function ClientsPage() {
@@ -55,7 +56,7 @@ export default function ClientsPage() {
   const [openDialog, setOpenDialog] = useState(false);
   const [editClient, setEditClient] = useState<Client | null>(null);
 
-  const { handleSubmit, reset, control, setValue } = useForm<Client>({
+  const { handleSubmit, reset, control, setValue, trigger } = useForm<Client>({
     resolver: yupResolver(schema),
   });
 
@@ -75,50 +76,97 @@ export default function ClientsPage() {
     loadClients();
   }, []);
 
-  async function onSubmit(data: Client) {
-    setLoading(true);
-    try {
-      if (editClient) {
-        await apiFetch("POST", "/organization/updateClient", {
-          ...data,
-          id: editClient.id,
-        });
-        toast.success("✅ Client updated successfully");
-      } else {
-        await apiFetch("POST", "/organization/createClient", data);
-        toast.success("✅ Client added successfully");
-      }
-      await loadClients();
-      reset();
-      setEditClient(null);
-      setOpenDialog(false);
-    } catch {
-      toast.error("Operation failed. Please try again.");
-    } finally {
+ async function onSubmit(data: Client) {
+  setLoading(true);
+
+  try {
+    const valid = await trigger();
+    if (!valid) {
       setLoading(false);
+      return;
     }
+
+    if (editClient) {
+      await apiFetch("POST", "/organization/updateClient", {
+        ...data,
+        id: editClient.id,
+      });
+      toast.success("Client updated successfully");
+    } else {
+      await apiFetch("POST", "/organization/createClient", data);
+      toast.success("Client added successfully");
+    }
+
+    await loadClients();
+    reset();
+    setEditClient(null);
+    setOpenDialog(false);
+
+  } catch (err: any) {
+
+    const backendMsg =
+      err?.message ||
+      err?.data?.message ||
+      err?.data?.error ||
+      err?.data?.errors ||
+      "Operation failed. Please try again.";
+
+    toast.error(backendMsg);
+
+  } finally {
+    setLoading(false);
   }
+}
+
 
   async function onDelete(id?: string) {
-    if (!id) return;
-    setLoading(true);
-    try {
-      await apiFetch("DELETE", "/organization/deleteClient", { id });
-      toast.success("🗑️ Client deleted successfully");
-      setClients((prev) => prev.filter((c) => c.id !== id));
-    } catch {
-      toast.error("Failed to delete client");
-    } finally {
-      setLoading(false);
-    }
+  if (!id) return;
+  setLoading(true);
+
+  try {
+    await apiFetch("DELETE", "/organization/deleteClient", { id });
+
+    toast.success("🗑️ Client deleted successfully");
+    setClients((prev) => prev.filter((c) => c.id !== id));
+
+  } catch (err: any) {
+    console.error("Delete error:", err);
+
+    const backendMsg =
+      err?.message ||
+      err?.data?.message ||
+      err?.data?.error ||
+      err?.data?.errors ||
+      "Failed to delete client";
+
+    toast.error(backendMsg);
+  } finally {
+    setLoading(false);
   }
+}
+
 
   function onEdit(client: Client) {
+    // normalize and reset whole form so all fields populate correctly
+    const normalized = {
+      ...client,
+      name: client.name ?? "",
+      description: client.description ?? "",
+      email: client.email ?? "",
+      mobile_number: client.mobile_number ?? "",
+      address_line_1: client.address_line_1 ?? "",
+      address_line_2: client.address_line_2 ?? "",
+      country: client.country ?? "",
+      state: client.state ?? "",
+      city: client.city ?? "",
+      pincode: client.pincode ?? "",
+      logo: client.logo ?? "",
+      GSTIN: client.GSTIN ?? "",
+    } as Client;
+
     setEditClient(client);
+    reset(normalized);
     setOpenDialog(true);
-    Object.entries(client).forEach(([key, value]) => {
-      setValue(key as keyof Client, value as any);
-    });
   }
 
   function openAddClientDialog() {
@@ -129,6 +177,7 @@ export default function ClientsPage() {
 
   return (
     <main className="px-4 py-6">
+      <GlobalLoader />
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-semibold">Clients</h1>
@@ -214,9 +263,10 @@ export default function ClientsPage() {
      <Dialog open={openDialog} onOpenChange={setOpenDialog}>
   <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto p-6 rounded-2xl">
     <DialogHeader>
-      <DialogTitle className="text-lg font-semibold text-center">
+      <DialogTitle className="text-lg font-semibold text-start">
         {editClient ? "Edit Client" : "Add Client"}
       </DialogTitle>
+
     </DialogHeader>
 
     <form
@@ -228,7 +278,8 @@ export default function ClientsPage() {
         <RHFInput
           control={control}
           name="description"
-          label="Description"
+          mandatory = {false}
+          label="Description" 
           placeholder="Description"
         />
         <RHFInput control={control} name="email" label="Email" placeholder="Email" />
@@ -240,7 +291,8 @@ export default function ClientsPage() {
         />
         <RHFInput
           control={control}
-          name="address_line_1"
+          name="address_line_1" 
+          mandatory={false}
           label="Address Line 1"
           placeholder="Address Line 1"
         />

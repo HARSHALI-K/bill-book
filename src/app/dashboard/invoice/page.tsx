@@ -7,6 +7,7 @@ import jsPDF from "jspdf";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { apiFetch } from "../../lib/api";
+import { formatNumberCompact } from "@/lib/utils";
 
 type Product = {
   description: string;
@@ -52,7 +53,7 @@ export default function QuotationMemo() {
             })) || [{ description: "", qty: 1, rate: 0 }],
         });
 
-        toast.success("✅ Quotation loaded successfully");
+        toast.success("Quotation loaded successfully");
       } else {
         toast.error("❌ Failed to load quotation");
       }
@@ -89,7 +90,7 @@ export default function QuotationMemo() {
       const pdfHeight = (canvas.height * 210) / canvas.width;
       pdf.addImage(imgData, "PNG", 0, 0, 210, pdfHeight);
       pdf.save("quotation.pdf");
-      toast.success("✅ PDF downloaded successfully");
+      toast.success("PDF downloaded successfully");
     } catch (error) {
       console.error("❌ PDF Generation Failed:", error);
       toast.error("Failed to download PDF");
@@ -243,7 +244,7 @@ export default function QuotationMemo() {
                 <tr key={idx}>
                   <td className="border p-1 text-center">{idx + 1}</td>
                   <td className="border p-1">{item.product?.name}</td>
-                  <td className="border p-1 text-center">{item.qty}</td>
+                  <td className="border p-1 text-center">{formatNumberCompact(item.qty)}</td>
                   <td className="border p-1 text-center">{item.rate}</td>
                   <td className="border p-1 text-center">{(item.qty * item.rate).toFixed(2)}</td>
                 </tr>

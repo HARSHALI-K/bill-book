@@ -1,6 +1,7 @@
 "use client";
 
 import { apiFetch } from "@/app/lib/api";
+import { formatNumberCompact } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import jsPDF from "jspdf";
@@ -85,7 +86,7 @@ const downloadPDF = () => {
     body: details.map((item: any, i: number) => [
       i + 1,
       item.product?.name || "",
-      Number(item.qty),
+      formatNumberCompact(item.qty),
       item.rate,
       item.amount,
     ]),
@@ -232,12 +233,12 @@ Total Amount: ₹${quotations?.grand_total}`;
           <tbody>
             {details.map((item: any, i: number) => (
               <tr key={i}>
-                <td style={bodyCell}>{i + 1}</td>
-                <td style={bodyCell}>{item.product?.name}</td>
-                <td style={bodyCell}>{parseFloat(item.qty)}</td>
-                <td style={bodyCell}>{item.rate}</td>
-                <td style={bodyCell}>{item.amount}</td>
-              </tr>
+                  <td style={bodyCell}>{i + 1}</td>
+                  <td style={bodyCell}>{item.product?.name}</td>
+                  <td style={bodyCell}>{formatNumberCompact(item.qty)}</td>
+                  <td style={bodyCell}>{item.rate}</td>
+                  <td style={bodyCell}>{item.amount}</td>
+                </tr>
             ))}
           </tbody>
         </table>
