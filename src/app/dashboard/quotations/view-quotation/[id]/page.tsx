@@ -6,17 +6,23 @@ import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 
 export default function InvoiceMobile() {
+  const params = useParams();
+  const id = params?.id as string;
   const [quotations, setQuotations] = useState<any>({});
   const [userdata, setUserdata] = useState<any>(null);
 
   async function loadQuotations() {
     try {
+      if (!id) {
+        toast.error("Quotation ID not found");
+        return;
+      }
       const res = await apiFetch<any>(
         "GET",
-        "/organization/getQuotationById/?id=1"
+        `/organization/getQuotationById/?id=${id}`
       );
       setQuotations(res?.data ?? {});
     } catch {
@@ -24,12 +30,11 @@ export default function InvoiceMobile() {
     }
   }
 const router=useRouter();
-console.log(router,"router",router?.query?.id)
   useEffect(() => {
     const stored = localStorage.getItem("userData");
     if (stored) setUserdata(JSON.parse(stored));
-    loadQuotations();
-  }, []);
+    if (id) loadQuotations();
+  }, [id]);
 
   const org = quotations?.organization;
   const client = quotations?.client;

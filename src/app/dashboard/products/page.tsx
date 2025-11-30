@@ -17,8 +17,10 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@radix-ui/react-label";
+import { Button } from "@/components/ui/button";
 
 type Product = {
   id?: string;
@@ -188,19 +190,19 @@ export default function ProductsPage() {
 
       {/* ✅ Dialog for Add/Edit Product */}
       <Dialog open={showForm} onOpenChange={setShowForm}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>
+        <DialogContent className="w-[95vw] sm:max-w-[600px] max-h-[95vh] sm:max-h-[90vh] flex flex-col p-0 gap-0">
+          <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3">
+            <DialogTitle className="text-base sm:text-lg">
               {editProduct ? "Edit Product" : "Add Product"}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-xs sm:text-sm">
               {editProduct
                 ? "Update your existing product details."
                 : "Fill the details below to add a new product."}
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="grid gap-3 py-2">
+          <form id="product-form" onSubmit={handleSubmit(onSubmit)} className="grid gap-3 py-2 px-4 sm:px-6 flex-1 overflow-y-auto">
             <RHFInput
               control={control}
               name="name"
@@ -238,16 +240,26 @@ export default function ProductsPage() {
               name="price"
               control={control}
               placeholder="Product Price"
-            />
-            <button
-              type="submit"
-              disabled={loading}
-              className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground flex items-center justify-center gap-2 disabled:opacity-60"
+            /></form>
+            <DialogFooter className="px-4 sm:px-6 pb-4 sm:pb-6 pt-3 border-t flex-col sm:flex-row gap-2">
+            <Button
+          type="button"
+          variant="outline"
+          onClick={() => setShowForm(false)}
+          className="flex items-center gap-1"
+        >
+          <X className="h-4 w-4" /> Cancel
+        </Button>
+            <Button
+              type="submit"  
+              disabled={loading} form="product-form"
+              className="w-full sm:w-auto order-1 sm:order-2"
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               {editProduct ? "Update Product" : "Add Product"}
-            </button>
-          </form>
+            </Button> 
+            </DialogFooter>
+          
         </DialogContent>
       </Dialog>
 

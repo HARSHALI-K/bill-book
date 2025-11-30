@@ -261,17 +261,17 @@ export default function ClientsPage() {
 
       {/* Add/Edit Dialog */}
      <Dialog open={openDialog} onOpenChange={setOpenDialog}>
-  <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto p-6 rounded-2xl">
-    <DialogHeader>
-      <DialogTitle className="text-lg font-semibold text-start">
+     <DialogContent className="w-[95vw] sm:max-w-[600px] max-h-[95vh] sm:max-h-[90vh] flex flex-col p-0 gap-0">
+     <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3">
+     <DialogTitle className="text-lg font-semibold text-start">
         {editClient ? "Edit Client" : "Add Client"}
       </DialogTitle>
 
     </DialogHeader>
 
-    <form
+    <form id="client-form"
       onSubmit={handleSubmit(onSubmit)}
-      className="flex flex-col gap-4 mt-4"
+     className="grid gap-3 py-2 px-4 sm:px-6 flex-1 overflow-y-auto"
     >
       <div className="space-y-3">
         <RHFInput control={control} name="name" label="Name" placeholder="Name" />
@@ -308,8 +308,8 @@ export default function ClientsPage() {
         <RHFInput control={control} name="pincode" label="Pincode" placeholder="Pincode" />
         <RHFInput control={control} name="GSTIN" label="GSTIN" placeholder="GSTIN" />
       </div>
-
-      <DialogFooter className="mt-6 flex justify-end gap-2">
+      </form>
+      <DialogFooter className="mt-6 flex justify-end gap-2 flex-col sm:flex-row gap-2">
         <Button
           type="button"
           variant="outline"
@@ -318,12 +318,12 @@ export default function ClientsPage() {
         >
           <X className="h-4 w-4" /> Cancel
         </Button>
-        <Button type="submit" disabled={loading} className="flex items-center gap-1">
+        <Button type="submit" disabled={loading} form="client-form" className="flex items-center gap-1">
           {loading && <Loader2 className="h-4 w-4 animate-spin" />}
           {editClient ? "Update Client" : "Add Client"}
         </Button>
       </DialogFooter>
-    </form>
+   
   </DialogContent>
 </Dialog>
 
